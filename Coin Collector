@@ -1,0 +1,222 @@
+import pygame
+import random
+import pickle
+from tkinter import *
+import tkinter.messagebox
+
+# FIX COLLISION DETECTION
+pygame.init()
+
+fox = pygame.image.load("fox.png")
+coin = pygame.image.load("coin.png")
+
+smallfont = pygame.font.SysFont("cambria", 25)
+medfont = pygame.font.SysFont("cambria", 50)
+largefont = pygame.font.SysFont("cambria", 80)
+
+
+display_width = 800
+display_height = 600
+
+lead_x = display_width / 2  # assigned to width/2 b/c lead x should be half of the horizontal screen
+lead_y = display_height / 2  # assigned to height/2 b/c lead y should be half of the vertical screen
+
+gameDisplay = pygame.display.set_mode((display_width, display_height))
+pygame.display.set_caption("Coin Collector")
+
+FPS = 30
+coin_size = 30
+rect_size = 10
+clock = pygame.time.Clock()
+direction = "right"
+
+
+def getHighScore():
+    # Function that utilizes the pickle module to create a file with the sole purpose of storing the high score.
+    # Function attempts to locate the "Snake-High-Scores" and load the high score. If the file is empty, highscore is set to zero.
+    try:
+        with open('Coin-Collector-High-Score', 'rb') as file:
+           highscore = pickle.load(file)
+    except:
+        highscore = 0
+
+    return highscore
+
+
+def messageBox():
+    # Function queries the user if they actually want to quit when they either press the "quit" button or press "x" on the game window.
+    root = Tk().withdraw()
+
+    answer = tkinter.messagebox.askquestion("Coin Collector", "Are you sure you want to quit?")  # parameters: "Window Title", "Msg to user"
+
+    if answer == "yes":
+        pygame.quit()
+        quit()
+
+    if answer == "no":
+        pass
+
+
+def text_objects(text, color, size):  # function that takes the msg and color as parameters
+    if size == "small":
+        textSurface = smallfont.render(text, True, color)  # renders the text and color
+
+    elif size == "medium":
+        textSurface = medfont.render(text, True, color)
+
+    elif size == "large":
+        textSurface = largefont.render(text, True, color)
+
+    return textSurface, textSurface.get_rect()  # returns surface and the rect surrounding the text.
+
+
+def message_to_screen(msg, color, y_displace=0, size = "small"): # Params: msg (message sent to user), color (color of msg displayed)
+    # y_displace considers displacement from the center; default val = 0 (don't need to enter input if the user wants to center everything)
+    textSurf, textRect = text_objects(msg, color, size)  # textSurf is similar to pygame surface obj, textRect = rect surrounding text.
+    textRect.center = (display_width/2), (display_height/2)+y_displace # Asks for center of text obj.
+        # Adding y_displace adds the pixels passed in for y_displace
+            # ex. Passing -100 for y_displace for game over would place it 100 pixels up from the rest of the text.
+
+    gameDisplay.blit(textSurf, textRect)  # puts text on surface (textSurf)
+
+def score(score):
+    text = smallfont.render("Score: " + str(score), True, pygame.Color("black"), )
+    gameDisplay.blit(text, [0,0])
+
+def place_coin():
+    randCoinX = round(random.randrange(0, display_width - coin_size))
+    randCoinY = round(random.randrange(0, display_height - coin_size))
+
+    return randCoinX, randCoinY
+
+
+def pause():
+    # This function allows the user to pause the game while playing.
+    # Implements the messageBox() function when the user attempts to quit the game.
+    # The Space Bar key controls the activation and deactivation of the pause menu.
+    paused = True
+
+    message_to_screen("Paused", pygame.Color("black"), y_displace=-100, size="large")
+    message_to_screen("Press SpaceBar to Continue.", pygame.Color("black"), y_displace=25, size="small")
+
+    pygame.display.update()
+
+    while paused:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:  # if user clicks "x" button
+                pygame.quit()
+                quit()
+            if event.type == pygame.KEYDOWN:  # if user clicks "c"
+                if event.key == pygame.K_SPACE:
+                    paused = False
+
+        clock.tick(5)  # Pause menu runs at 5 Frames Per Seconds (FPS).
+
+
+def rotate_fox():
+
+    if direction == "right":
+        Fox = fox
+    if direction == "left":
+        Fox = pygame.transform.rotate(fox, 180)
+    if direction == "up":
+        Fox = pygame.transform.rotate(fox, 90)
+    if direction == "down":
+        Fox = pygame.transform.rotate(fox, 270)
+
+    return Fox
+
+
+def gameLoop():  # Defines a gameloop that runs the program
+    gameExit = False
+    gameOver = False
+    global direction, lead_x, lead_y
+    scorez = 0
+    Fox = rotate_fox()
+    highscore = getHighScore()
+
+    direction ="right"
+    #lead_x = display_width / 2  # assigned to width/2 b/c lead x should be half of the horizontal screen
+    #lead_y = display_height / 2  # assigned to height/2 b/c lead y should be half of the vertical screen
+
+    lead_x_change = 10  # Specifies the starting direction; snake is already moving when game starts
+    lead_y_change = 0
+
+    randCoinX, randCoinY = place_coin()
+
+    while not gameExit:
+
+        while gameOver == True:  # loop that checks if game is over
+            gameDisplay.fill(pygame.Color("white"))
+            if scorez > highscore:
+               highscore = scorez
+               with open('Coin-Collector-High-Score', 'wb') as file:
+                    pickle.dump(highscore, file)
+            else:
+                message_to_screen("High Score: " + str(highscore), pygame.Color("black"), y_displace=-40, size="medium")
+
+            message_to_screen("Game Over!", pygame.Color("red"), -250, size="large")  # places "Game Over!" 50 pixels up from center of screen
+            message_to_screen("Score: " + str(scorez), pygame.Color("black"), -130, size="medium")
+            message_to_screen("High Score: " + str(highscore), pygame.Color("black"), y_displace=-40, size="medium")
+
+
+            pygame.display.update()  # updates display to show msg
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    messageBox()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                messageBox()
+            if event.type == pygame.KEYDOWN:  # If user presses the key
+                if event.key == pygame.K_LEFT:
+                    direction = "left"
+                    lead_x_change = -rect_size
+                    lead_y_change = 0
+                elif event.key == pygame.K_RIGHT:
+                    direction = "right"
+                    lead_x_change = rect_size
+                    lead_y_change = 0  # By affirming that lead_y_change is 0, we can prevent the rect from moving diagonally.
+
+                elif event.key == pygame.K_UP:
+                    direction = "up"
+                    lead_y_change = -rect_size
+                    lead_x_change = 0  # By affirming that lead_x_change is 0, we can prevent the rect from moving diagonally
+                elif event.key == pygame.K_DOWN:
+                    direction = "down"
+                    lead_y_change = rect_size
+                    lead_x_change = 0
+                elif event.key == pygame.K_SPACE:
+                    pause()
+
+            if lead_x >= display_width or lead_x < 0 or lead_y >= display_height or lead_y < 0:
+                gameOver = True
+
+
+        lead_x += lead_x_change
+        lead_y += lead_y_change
+        gameDisplay.fill(pygame.Color("white"))
+        gameDisplay.blit(coin, (randCoinX, randCoinY))
+        gameDisplay.blit(Fox, (lead_x, lead_y))
+        score(scorez)
+
+        pygame.display.update()
+
+        if (lead_x > randCoinX and lead_x < randCoinX + coin_size) or (lead_x + 60 > randCoinX and lead_x + 60 < randCoinX + coin_size):
+
+            if (lead_y > randCoinY and lead_y < randCoinY + coin_size) or (lead_y + 60 > randCoinY and lead_y + 60 < randCoinY +coin_size):
+                randCoinX, randCoinY = place_coin()
+                scorez += 10
+
+            elif lead_y + rect_size > randCoinY and lead_y + rect_size < randCoinY + coin_size:
+                randCoinX, randCoinY = place_coin()
+                scorez += 10
+
+        clock.tick(FPS)  # param = FPS
+
+    pygame.quit()
+    quit()
+
+
+gameLoop()
